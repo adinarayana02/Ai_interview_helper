@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Akshara Voice Assistant</title>
+    <style>
+      body {
+        font-family: "Roboto", Arial, sans-serif;
+        margin: 0;
+        padding: 0;
+        background: linear-gradient(135deg, #1e3c72, #2a5298);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        color: #fff;
+      }
+
+      .container {
+        background: linear-gradient(145deg, #ffffff, #f1f1f1);
+        border-radius: 15px;
+        padding: 30px;
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+        max-width: 700px;
+        width: 100%;
+        text-align: center;
+      }
+
+      h1 {
+        margin-bottom: 20px;
+        font-size: 2.2rem;
+        color: #1e3c72;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .logo {
+        width: 50px;
+        height: 50px;
+        margin-right: 10px;
+      }
+
+      .status-indicator {
+        padding: 10px;
+        margin: 20px 0;
+        border-radius: 10px;
+        background: #f0f0f0;
+        color: #333;
+        font-weight: bold;
+      }
+
+      .conversation-display {
+        width: 100%;
+        min-height: 200px;
+        margin-bottom: 15px;
+        padding: 15px;
+        border: none;
+        border-radius: 10px;
+        font-size: 1rem;
+        background: #f9f9f9;
+        box-shadow: inset 0 3px 6px rgba(0, 0, 0, 0.1);
+        resize: vertical;
+        color: #333;
+        overflow-y: auto;
+      }
+
+      .input-text {
+        width: 100%;
+        min-height: 100px;
+        margin-bottom: 15px;
+        padding: 15px;
+        border: none;
+        border-radius: 10px;
+        font-size: 1rem;
+        background: #f9f9f9;
+        box-shadow: inset 0 3px 6px rgba(0, 0, 0, 0.1);
+        resize: vertical;
+        color: #333;
+      }
+
+      .output-text {
+        width: 100%;
+        min-height: 100px;
+        margin-bottom: 15px;
+        padding: 15px;
+        border: none;
+        border-radius: 10px;
+        font-size: 1rem;
+        background: #f9f9f9;
+        box-shadow: inset 0 3px 6px rgba(0, 0, 0, 0.1);
+        resize: vertical;
+        color: #333;
+        overflow-y: auto;
+      }
+
+      .highlighted-text {
+        background-color: yellow;
+      }
+
+      #stop-btn {
+        padding: 12px 20px;
+        background: linear-gradient(90deg, #ff4b4b, #ff6b6b);
+        color: #fff;
+        border: none;
+        border-radius: 10px;
+        font-size: 1rem;
+        font-weight: bold;
+        cursor: pointer;
+        transition: all 0.3s ease-in-out;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+        display: none;
+      }
+
+      #stop-btn:hover {
+        transform: scale(1.05);
+        box-shadow: 0 6px 15px rgba(0, 0, 0, 0.25);
+      }
+
+      .listening-indicator {
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        background: #36d1dc;
+        display: inline-block;
+        margin-right: 10px;
+        animation: pulse 1.5s infinite;
+      }
+
+      @keyframes pulse {
+        0% {
+          transform: scale(0.95);
+          box-shadow: 0 0 0 0 rgba(54, 209, 220, 0.7);
+        }
+        70% {
+          transform: scale(1);
+          box-shadow: 0 0 0 10px rgba(54, 209, 220, 0);
+        }
+        100% {
+          transform: scale(0.95);
+          box-shadow: 0 0 0 0 rgba(54, 209, 220, 0);
+        }
+      }
+
+      @media (max-width: 768px) {
+        h1 {
+          font-size: 1.8rem;
+        }
+
+        .conversation-display {
+          font-size: 0.9rem;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>
+        <img
+          src="https://img.freepik.com/free-vector/ai-technology-robot-cute-design_24640-134420.jpg?semt=ais_hybrid"
+          class="logo"
+          alt="Akshara Logo"
+        />Akshara: Your Voice for Learning
+      </h1>
+      <div class="status-indicator">
+        <div class="listening-indicator"></div>
+        <span id="status-text">Starting...</span>
+      </div>
+      <div class="input-text" id="input-text"></div>
+      <div class="output-text" id="output-text"></div>
+      <button id="stop-btn">Stop Conversation</button>
+    </div>
+    <script>
+      let mediaRecorder;
+      let audioChunks = [];
+      let isListening = false;
+      let recognition;
+
+      const inputText = document.getElementById("input-text");
+      const outputText = document.getElementById("output-text");
+      const statusText = document.getElementById("status-text");
+      const stopButton = document.getElementById("stop-btn");
+
+      // Initialize speech recognition
+      function initializeSpeechRecognition() {
+        recognition = new (window.SpeechRecognition ||
+          window.webkitSpeechRecognition)();
+        recognition.continuous = true;
+        recognition.interimResults = false;
+        recognition.lang = "en-US";
+
+        recognition.onstart = () => {
+          isListening = true;
+          statusText.textContent = "Listening...";
+          stopButton.style.display = "inline-block";
+        };
+
+        recognition.onresult = async (event) => {
+          const text = event.results[event.results.length - 1][0].transcript;
+          addToConversation("You: " + text);
+
+          if (text.toLowerCase().includes("stop")) {
+            stopConversation();
+            return;
+          }
+
+          // Process the speech input
+          await processUserInput(text);
+        };
+
+        recognition.onerror = (event) => {
+          console.error("Speech recognition error:", event.error);
+          statusText.textContent = "Error: " + event.error;
+        };
+
+        recognition.onend = () => {
+          if (isListening) {
+            recognition.start();
+          }
+        };
+      }
+
+      // Add message to conversation log
+      function addToConversation(text) {
+        inputText.innerHTML += text + "<br>";
+        inputText.scrollTop = inputText.scrollHeight;
+      }
+
+      // Process user input and get AI response
+      async function processUserInput(text) {
+        try {
+          statusText.textContent = "Processing...";
+
+          const response = await fetch("/generate", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ text }),
+          });
+
+          const data = await response.json();
+
+          if (data.error) {
+            throw new Error(data.error);
+          }
+
+          // Display text response
+          const responseText = "AI: " + data.text;
+          outputText.innerHTML += responseText + "<br>";
+          outputText.scrollTop = outputText.scrollHeight;
+
+          // Highlight the text response
+          const lastChild = outputText.lastChild;
+          if (lastChild) {
+            lastChild.classList.add("highlighted-text");
+          }
+
+          // Play audio response if available
+          if (data.audio_url) {
+            const audio = new Audio(data.audio_url);
+            await audio.play();
+          }
+
+          statusText.textContent = "Listening...";
+        } catch (err) {
+          console.error("Error processing input:", err);
+          statusText.textContent = "Error processing input";
+        }
+      }
+
+      // Stop the conversation
+      function stopConversation() {
+        isListening = false;
+        if (recognition) {
+          recognition.stop();
+        }
+        statusText.textContent = "Conversation ended";
+        stopButton.style.display = "none";
+        addToConversation(
+          "System: Conversation ended. Refresh page to start new conversation."
+        );
+      }
+
+      // Start button click handler
+      stopButton.addEventListener("click", stopConversation);
+
+      // Initialize when page loads
+      window.addEventListener("load", () => {
+        initializeSpeechRecognition();
+        setTimeout(() => {
+          recognition.start();
+          statusText.textContent = "Listening...";
+        }, 1000);
+      });
+    </script>
+  </body>
+</html>
